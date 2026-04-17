@@ -4,10 +4,6 @@ import { createImageHost } from "../../../scripts/ui/imagePreview.js";
 
 const BASE_SIZE = 768;
 const NODE_NAMES = new Set([
-    "ComfyUI-Veo3.1 veo-3.1-generate-preview (Text)",
-    "ComfyUI-Veo3.1 veo-3.1-generate-preview (Image)",
-    "ComfyUI-Veo3.1 veo-3.1-fast-generate-preview (Text)",
-    "ComfyUI-Veo3.1 veo-3.1-fast-generate-preview (Image)",
     "ComfyUI-Veo3.1 Preview Video",
 ]);
 

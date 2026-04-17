@@ -14,6 +14,7 @@ import torch
 
 from .api import (
     Client,
+    MODEL_OPTIONS,
     PROVIDER_AIHUBMIX,
     SIZE_OPTIONS,
     TEXT_SECONDS_OPTIONS,
@@ -333,7 +334,6 @@ def _build_preview_result(video_url, filename_prefix, save_output):
 
 
 class _BaseVeoTextNode:
-    MODEL_NAME = None
     RETURN_TYPES = ("STRING", "STRING", "STRING")
     RETURN_NAMES = ("url", "video_id", "file_path")
     FUNCTION = "generate"
@@ -344,6 +344,7 @@ class _BaseVeoTextNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "model": (MODEL_OPTIONS, {"default": "veo-3.1-fast-generate-preview"}),
                 "prompt": ("STRING", {"multiline": True, "default": ""}),
                 "seconds": (TEXT_SECONDS_OPTIONS, {"default": "4"}),
                 "size": (SIZE_OPTIONS, {"default": "720p"}),
@@ -352,22 +353,21 @@ class _BaseVeoTextNode:
             }
         }
 
-    def generate(self, prompt, seconds, size, filename_prefix=DEFAULT_FILENAME_PREFIX, save_output=True):
+    def generate(self, model, prompt, seconds, size, filename_prefix=DEFAULT_FILENAME_PREFIX, save_output=True):
         with _runtime_client() as client:
             payload = build_text_video_payload(
-                self.MODEL_NAME,
+                model,
                 _clean_prompt(prompt),
                 seconds,
                 size,
                 provider=client.provider,
             )
-            task_id, task_info = _submit_and_wait(client, self.MODEL_NAME, payload, request_kind="text")
-            print(f"[{NODE_PREFIX}] completed {self.MODEL_NAME} task_id={task_id}")
+            task_id, task_info = _submit_and_wait(client, model, payload, request_kind="text")
+            print(f"[{NODE_PREFIX}] completed {model} task_id={task_id}")
             return _build_video_result(client, task_id, task_info, filename_prefix, save_output)
 
 
 class _BaseVeoImageNode:
-    MODEL_NAME = None
     RETURN_TYPES = ("STRING", "STRING", "STRING")
     RETURN_NAMES = ("url", "video_id", "file_path")
     FUNCTION = "generate"
@@ -378,6 +378,7 @@ class _BaseVeoImageNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "model": (MODEL_OPTIONS, {"default": "veo-3.1-fast-generate-preview"}),
                 "prompt": ("STRING", {"multiline": True, "default": ""}),
                 "image": ("IMAGE",),
                 "size": (SIZE_OPTIONS, {"default": "720p"}),
@@ -386,38 +387,30 @@ class _BaseVeoImageNode:
             }
         }
 
-    def generate(self, prompt, image, size, filename_prefix=DEFAULT_FILENAME_PREFIX, save_output=True):
+    def generate(self, model, prompt, image, size, filename_prefix=DEFAULT_FILENAME_PREFIX, save_output=True):
         with _runtime_client() as client:
             image_reference = build_input_reference_payload(
                 _image_to_base64(image),
                 provider=client.provider,
             )
             payload = build_image_video_payload(
-                self.MODEL_NAME,
+                model,
                 _clean_prompt(prompt),
                 size,
                 image_reference,
                 provider=client.provider,
             )
-            task_id, task_info = _submit_and_wait(client, self.MODEL_NAME, payload, request_kind="image")
-            print(f"[{NODE_PREFIX}] completed {self.MODEL_NAME} task_id={task_id}")
+            task_id, task_info = _submit_and_wait(client, model, payload, request_kind="image")
+            print(f"[{NODE_PREFIX}] completed {model} task_id={task_id}")
             return _build_video_result(client, task_id, task_info, filename_prefix, save_output)
 
 
 class Veo31TextNode(_BaseVeoTextNode):
-    MODEL_NAME = "veo-3.1-generate-preview"
+    pass
 
 
 class Veo31ImageNode(_BaseVeoImageNode):
-    MODEL_NAME = "veo-3.1-generate-preview"
-
-
-class Veo31FastTextNode(_BaseVeoTextNode):
-    MODEL_NAME = "veo-3.1-fast-generate-preview"
-
-
-class Veo31FastImageNode(_BaseVeoImageNode):
-    MODEL_NAME = "veo-3.1-fast-generate-preview"
+    pass
 
 
 class PreviewVideoNode:

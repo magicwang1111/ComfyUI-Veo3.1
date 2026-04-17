@@ -108,11 +108,21 @@ class FakeVideoClient(FakeResolvedClient):
 
 
 class BackendConfigTests(unittest.TestCase):
-    def test_node_mapping_contains_four_generation_nodes(self):
-        self.assertEqual(len(veo_package.NODE_CLASS_MAPPINGS), 5)
-        self.assertIn("ComfyUI-Veo3.1 veo-3.1-generate-preview (Text)", veo_package.NODE_CLASS_MAPPINGS)
-        self.assertIn("ComfyUI-Veo3.1 veo-3.1-fast-generate-preview (Image)", veo_package.NODE_CLASS_MAPPINGS)
+    def test_node_mapping_contains_two_generation_nodes_and_preview(self):
+        self.assertEqual(len(veo_package.NODE_CLASS_MAPPINGS), 3)
+        self.assertIn("ComfyUI-Veo3.1 Text-to-Video", veo_package.NODE_CLASS_MAPPINGS)
+        self.assertIn("ComfyUI-Veo3.1 Image-to-Video", veo_package.NODE_CLASS_MAPPINGS)
         self.assertIn("ComfyUI-Veo3.1 Preview Video", veo_package.NODE_CLASS_MAPPINGS)
+
+    def test_model_options_include_lite_fast_and_generate(self):
+        self.assertEqual(
+            video_api.MODEL_OPTIONS,
+            [
+                "veo-3.1-lite-generate-preview",
+                "veo-3.1-fast-generate-preview",
+                "veo-3.1-generate-preview",
+            ],
+        )
 
     def test_runtime_client_prefers_config_local_json(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -200,7 +210,7 @@ class BackendConfigTests(unittest.TestCase):
 
     def test_google_text_payload_uses_instances_and_parameters(self):
         payload = video_api.build_text_video_payload(
-            "veo-3.1-generate-preview",
+            "veo-3.1-lite-generate-preview",
             "A calm coastal scene.",
             "8",
             "1080p",
@@ -301,6 +311,7 @@ class BackendConfigTests(unittest.TestCase):
 
         with mock.patch.object(veo_nodes, "_runtime_client", fake_runtime_client):
             result = veo_nodes.Veo31TextNode().generate(
+                "veo-3.1-generate-preview",
                 "A calm coastal scene.",
                 "4",
                 "720p",
@@ -339,6 +350,7 @@ class BackendConfigTests(unittest.TestCase):
 
         with mock.patch.object(veo_nodes, "_runtime_client", fake_runtime_client):
             result = veo_nodes.Veo31TextNode().generate(
+                "veo-3.1-fast-generate-preview",
                 "A calm coastal scene.",
                 "4",
                 "720p",
@@ -374,6 +386,7 @@ class BackendConfigTests(unittest.TestCase):
                         return_value=(str(tmpdir_path), "ComfyUI-Veo3.1", 1, "", None),
                     ):
                         result = veo_nodes.Veo31TextNode().generate(
+                            "veo-3.1-generate-preview",
                             "A calm coastal scene.",
                             "4",
                             "720p",
@@ -409,6 +422,7 @@ class BackendConfigTests(unittest.TestCase):
         with mock.patch.object(veo_nodes, "_runtime_client", fake_runtime_client):
             with self.assertRaisesRegex(ValueError, "AIHubMix currently rejects Veo 3.1 image-to-video requests"):
                 veo_nodes.Veo31ImageNode().generate(
+                    "veo-3.1-generate-preview",
                     "A paper lantern in motion.",
                     fake_image,
                     "720p",

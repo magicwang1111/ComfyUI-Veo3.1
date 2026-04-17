@@ -1,6 +1,7 @@
 from .client import Client, PROVIDER_AIHUBMIX, PROVIDER_GOOGLE, VideoAPIError
 from .video import (
     ACTIVE_VIDEO_STATUSES,
+    MODEL_OPTIONS,
     FAILURE_VIDEO_STATUSES,
     SIZE_OPTIONS,
     TEXT_SECONDS_OPTIONS,
@@ -18,6 +19,7 @@ __all__ = [
     "ACTIVE_VIDEO_STATUSES",
     "Client",
     "FAILURE_VIDEO_STATUSES",
+    "MODEL_OPTIONS",
     "PROVIDER_AIHUBMIX",
     "PROVIDER_GOOGLE",
     "SIZE_OPTIONS",

@@ -7,6 +7,11 @@ from .client import PROVIDER_AIHUBMIX, PROVIDER_GOOGLE
 
 TEXT_SECONDS_OPTIONS = ["4", "6", "8"]
 SIZE_OPTIONS = ["720p", "1080p", "4k"]
+MODEL_OPTIONS = [
+    "veo-3.1-lite-generate-preview",
+    "veo-3.1-fast-generate-preview",
+    "veo-3.1-generate-preview",
+]
 DEFAULT_IMAGE_SECONDS = "8"
 DEFAULT_IMAGE_REFERENCE_MIME_TYPE = "image/jpeg"
 
@@ -38,6 +43,13 @@ def _validate_size(size):
     return normalized
 
 
+def _validate_model_name(model_name):
+    normalized = str(model_name).strip()
+    if normalized not in MODEL_OPTIONS:
+        raise ValueError(f"model must be one of: {', '.join(MODEL_OPTIONS)}.")
+    return normalized
+
+
 def _validate_google_resolution_duration(size, seconds):
     if size in {"1080p", "4k"} and str(seconds).strip() != DEFAULT_IMAGE_SECONDS:
         raise ValueError("Google native Veo requires duration_seconds=8 when resolution is 1080p or 4k.")
@@ -64,6 +76,7 @@ def build_input_reference_payload(
 
 
 def build_text_video_payload(model_name, prompt, seconds, size, provider=PROVIDER_AIHUBMIX):
+    validated_model = _validate_model_name(model_name)
     cleaned_prompt = _clean_prompt(prompt)
     validated_seconds = _validate_seconds(seconds)
     validated_size = _validate_size(size)
@@ -83,7 +96,7 @@ def build_text_video_payload(model_name, prompt, seconds, size, provider=PROVIDE
         }
 
     return {
-        "model": str(model_name).strip(),
+        "model": validated_model,
         "prompt": cleaned_prompt,
         "seconds": validated_seconds,
         "size": validated_size,
@@ -94,6 +107,7 @@ def build_image_video_payload(model_name, prompt, size, input_reference, provide
     if not isinstance(input_reference, (dict, str)):
         raise ValueError("input_reference must be a dict or string.")
 
+    validated_model = _validate_model_name(model_name)
     cleaned_prompt = _clean_prompt(prompt)
     validated_size = _validate_size(size)
 
@@ -112,7 +126,7 @@ def build_image_video_payload(model_name, prompt, size, input_reference, provide
         }
 
     return {
-        "model": str(model_name).strip(),
+        "model": validated_model,
         "prompt": cleaned_prompt,
         "seconds": DEFAULT_IMAGE_SECONDS,
         "size": validated_size,

@@ -2,20 +2,16 @@
 
 `ComfyUI-Veo3.1` is a small ComfyUI custom node pack for generating Veo 3.1 videos through either AIHubMix's unified video API or Google's native Gemini Developer API.
 
-It exposes four output nodes under the `ComfyUI-Veo3.1` category:
+It exposes three nodes under the `ComfyUI-Veo3.1` category:
 
-- `ComfyUI-Veo3.1 veo-3.1-generate-preview (Text)`
-- `ComfyUI-Veo3.1 veo-3.1-generate-preview (Image)`
-- `ComfyUI-Veo3.1 veo-3.1-fast-generate-preview (Text)`
-- `ComfyUI-Veo3.1 veo-3.1-fast-generate-preview (Image)`
+- `ComfyUI-Veo3.1 Text-to-Video`
+- `ComfyUI-Veo3.1 Image-to-Video`
 - `ComfyUI-Veo3.1 Preview Video`
 
 ## What It Supports
 
-- Text-to-video for `veo-3.1-generate-preview`
-- Image-to-video for `veo-3.1-generate-preview`
-- Text-to-video for `veo-3.1-fast-generate-preview`
-- Image-to-video for `veo-3.1-fast-generate-preview`
+- Model switching inside the text node: `veo-3.1-lite-generate-preview`, `veo-3.1-fast-generate-preview`, `veo-3.1-generate-preview`
+- Model switching inside the image node: `veo-3.1-lite-generate-preview`, `veo-3.1-fast-generate-preview`, `veo-3.1-generate-preview`
 - AIHubMix relay mode through `https://aihubmix.com`
 - Google native mode through `https://generativelanguage.googleapis.com/v1beta`
 - A standalone `Preview Video` node for explicit playback and saving
@@ -29,8 +25,10 @@ It exposes four output nodes under the `ComfyUI-Veo3.1` category:
 - `size` is intentionally limited to `720p`, `1080p`, and `4k`.
 - The plugin does not expose a portrait/landscape toggle in v1.
 - When using Google native Veo, `1080p` and `4k` text-to-video require `8` seconds per the official Gemini API documentation.
+- The text and image nodes now use a single `model` dropdown instead of separate nodes per model.
 - Generation nodes no longer display inline previews. Connect their `url` output to `ComfyUI-Veo3.1 Preview Video`.
 - On April 17, 2026, AIHubMix Veo 3.1 image-to-video probes still failed with the upstream error `` `inlineData` isn't supported by this model `` on both `https://aihubmix.com/v1/videos` and `https://aihubmix.com/gemini/v1beta`. The plugin now surfaces that limitation with a clearer error message instead of dumping the raw gateway trace.
+- As of April 17, 2026, AIHubMix's public Video Gen docs list `veo-3.1-generate-preview` and `veo-3.1-fast-generate-preview`, but do not list `veo-3.1-lite-generate-preview`. The dropdown still includes Lite so you can use it against Google native Veo directly, but AIHubMix relay support for Lite may lag behind.
 
 Why the direction toggle is hidden:
 - On April 17, 2026, live probes against `https://aihubmix.com/v1/videos` accepted both `aspect_ratio: "9:16"` and `ratio: "9:16"` with `size: "720p"`, but the completed outputs still rendered at `1280x720`.
@@ -105,6 +103,7 @@ Google native example:
 
 Inputs:
 
+- `model`: `veo-3.1-lite-generate-preview`, `veo-3.1-fast-generate-preview`, `veo-3.1-generate-preview`
 - `prompt`
 - `seconds`: `4`, `6`, `8`
 - `size`: `720p`, `1080p`, `4k`
@@ -121,6 +120,7 @@ Outputs:
 
 Inputs:
 
+- `model`: `veo-3.1-lite-generate-preview`, `veo-3.1-fast-generate-preview`, `veo-3.1-generate-preview`
 - `prompt`
 - `image`
 - `size`: `720p`, `1080p`, `4k`

@@ -4,7 +4,7 @@
   "nodes": [
     {
       "id": 1,
-      "type": "ComfyUI-Veo3.1 veo-3.1-generate-preview (Text)",
+      "type": "ComfyUI-Veo3.1 Text-to-Video",
       "pos": [
         360,
         220
@@ -37,9 +37,10 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "ComfyUI-Veo3.1 veo-3.1-generate-preview (Text)"
+        "Node name for S&R": "ComfyUI-Veo3.1 Text-to-Video"
       },
       "widgets_values": [
+        "veo-3.1-fast-generate-preview",
         "A calm coastal scene at sunrise, gentle waves, natural ambient ocean sound.",
         "4",
         "720p",
