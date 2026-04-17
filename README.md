@@ -15,8 +15,8 @@ It exposes three nodes under the `ComfyUI-Veo3.1` category:
 - AIHubMix relay mode through `https://aihubmix.com`
 - Google native mode through `https://generativelanguage.googleapis.com/v1beta`
 - A standalone `Preview Video` node for explicit playback and saving
-- Saving finished MP4 files into ComfyUI output
-- Remote preview when `save_output` is disabled
+- Saving finished MP4 files into ComfyUI output through `Preview Video`
+- Remote preview when `Preview Video.save_output` is disabled
 
 ## Current API Notes
 
@@ -26,7 +26,7 @@ It exposes three nodes under the `ComfyUI-Veo3.1` category:
 - The plugin does not expose a portrait/landscape toggle in v1.
 - When using Google native Veo, `1080p` and `4k` text-to-video require `8` seconds per the official Gemini API documentation.
 - The text and image nodes now use a single `model` dropdown instead of separate nodes per model.
-- Generation nodes no longer display inline previews. Connect their `url` output to `ComfyUI-Veo3.1 Preview Video`.
+- Generation nodes no longer display inline previews or saving controls. Connect their `url` output to `ComfyUI-Veo3.1 Preview Video`.
 - On April 17, 2026, AIHubMix Veo 3.1 image-to-video probes still failed with the upstream error `` `inlineData` isn't supported by this model `` on both `https://aihubmix.com/v1/videos` and `https://aihubmix.com/gemini/v1beta`. The plugin now surfaces that limitation with a clearer error message instead of dumping the raw gateway trace.
 - As of April 17, 2026, AIHubMix's public Video Gen docs list `veo-3.1-generate-preview` and `veo-3.1-fast-generate-preview`, but do not list `veo-3.1-lite-generate-preview`. The dropdown still includes Lite so you can use it against Google native Veo directly, but AIHubMix relay support for Lite may lag behind.
 
@@ -107,8 +107,6 @@ Inputs:
 - `prompt`
 - `seconds`: `4`, `6`, `8`
 - `size`: `720p`, `1080p`, `4k`
-- `filename_prefix`
-- `save_output`
 
 Outputs:
 
@@ -124,8 +122,6 @@ Inputs:
 - `prompt`
 - `image`
 - `size`: `720p`, `1080p`, `4k`
-- `filename_prefix`
-- `save_output`
 
 Outputs:
 
@@ -138,7 +134,7 @@ Notes:
 - Image nodes always send `seconds = "8"` to the backend.
 - In AIHubMix mode, `url` returns `/v1/videos/{video_id}/content`.
 - In Google native mode, `url` returns the generated video download URI from the completed operation.
-- `file_path` is only populated when `save_output` is enabled.
+- `file_path` is currently returned as an empty string from generation nodes.
 - To preview the generated video inside ComfyUI, connect `url` to `ComfyUI-Veo3.1 Preview Video`.
 
 ### Preview Video Node

@@ -315,8 +315,6 @@ class BackendConfigTests(unittest.TestCase):
                 "A calm coastal scene.",
                 "4",
                 "720p",
-                "ComfyUI-Veo3.1",
-                False,
             )
 
         self.assertNotIn("ui", result)
@@ -354,8 +352,6 @@ class BackendConfigTests(unittest.TestCase):
                 "A calm coastal scene.",
                 "4",
                 "720p",
-                "ComfyUI-Veo3.1",
-                False,
             )
 
         self.assertNotIn("ui", result)
@@ -364,7 +360,7 @@ class BackendConfigTests(unittest.TestCase):
             ("https://example.com/generated-google.mp4", "operations/video-abc", ""),
         )
 
-    def test_text_node_saves_local_video_when_requested(self):
+    def test_text_node_returns_empty_file_path(self):
         fake_client = FakeVideoClient(
             [
                 {"id": "video-999", "status": "in_progress"},
@@ -376,32 +372,22 @@ class BackendConfigTests(unittest.TestCase):
         def fake_runtime_client():
             yield fake_client
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir_path = Path(tmpdir)
-            with mock.patch.object(veo_nodes, "_runtime_client", fake_runtime_client):
-                with mock.patch.object(veo_nodes.folder_paths, "get_output_directory", return_value=str(tmpdir_path)):
-                    with mock.patch.object(
-                        veo_nodes.folder_paths,
-                        "get_save_image_path",
-                        return_value=(str(tmpdir_path), "ComfyUI-Veo3.1", 1, "", None),
-                    ):
-                        result = veo_nodes.Veo31TextNode().generate(
-                            "veo-3.1-generate-preview",
-                            "A calm coastal scene.",
-                            "4",
-                            "720p",
-                            "ComfyUI-Veo3.1",
-                            True,
-                        )
+        with mock.patch.object(veo_nodes, "_runtime_client", fake_runtime_client):
+            result = veo_nodes.Veo31TextNode().generate(
+                "veo-3.1-generate-preview",
+                "A calm coastal scene.",
+                "4",
+                "720p",
+            )
 
         self.assertNotIn("ui", result)
         self.assertEqual(
             result["result"][0],
             "https://aihubmix.com/v1/videos/video-999/content",
         )
-        self.assertTrue(result["result"][2].endswith("ComfyUI-Veo3.1_00001_.mp4"))
+        self.assertEqual(result["result"][2], "")
 
-    def test_aihubmix_image_node_raises_clearer_inline_data_error(self):
+    def test_aihubmix_image_node_raises_clearer_relay_error(self):
         class InlineDataRejectingClient(FakeResolvedClient):
             def __init__(self):
                 super().__init__("fake-key", timeout=60, base_url="https://aihubmix.com", poll_interval=0.0)
@@ -420,14 +406,28 @@ class BackendConfigTests(unittest.TestCase):
         fake_image = sys.modules["torch"].Tensor(numpy.zeros((1, 16, 16, 3), dtype=numpy.float32))
 
         with mock.patch.object(veo_nodes, "_runtime_client", fake_runtime_client):
-            with self.assertRaisesRegex(ValueError, "AIHubMix currently rejects Veo 3.1 image-to-video requests"):
+            with self.assertRaisesRegex(ValueError, "AIHubMix relay currently does not work reliably for Veo 3.1 image-to-video"):
                 veo_nodes.Veo31ImageNode().generate(
                     "veo-3.1-generate-preview",
                     "A paper lantern in motion.",
                     fake_image,
                     "720p",
-                    "ComfyUI-Veo3.1",
-                    False,
+                )
+
+    def test_aihubmix_lite_image_node_raises_clearer_model_support_error(self):
+        @contextmanager
+        def fake_runtime_client():
+            yield FakeResolvedClient("fake-key", timeout=60, base_url="https://aihubmix.com", poll_interval=0.0)
+
+        fake_image = sys.modules["torch"].Tensor(numpy.zeros((1, 16, 16, 3), dtype=numpy.float32))
+
+        with mock.patch.object(veo_nodes, "_runtime_client", fake_runtime_client):
+            with self.assertRaisesRegex(ValueError, "does not support image-to-video for `veo-3.1-lite-generate-preview`"):
+                veo_nodes.Veo31ImageNode().generate(
+                    "veo-3.1-lite-generate-preview",
+                    "A paper lantern in motion.",
+                    fake_image,
+                    "720p",
                 )
 
     def test_preview_video_returns_remote_url_when_save_disabled(self):

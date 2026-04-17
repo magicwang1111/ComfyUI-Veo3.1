@@ -201,13 +201,14 @@ def _raise_with_api_guidance(exc, provider=None, model_name=None, request_kind="
         provider == PROVIDER_AIHUBMIX
         and request_kind == "image"
         and str(model_name or "").startswith("veo-3.1")
-        and "inlineData" in message
+        and any(token in message for token in ("inlineData", "referenceImages"))
     ):
         raise ValueError(
             "AIHubMix currently rejects Veo 3.1 image-to-video requests for this model. "
             "I rechecked this on April 17, 2026 against both `/v1/videos` and the Gemini-compatible "
-            "`/gemini/v1beta` route and got the same upstream `inlineData` rejection. "
-            "Text-to-video still works. If you need image-to-video right now, switch `base_url` to "
+            "`/gemini/v1beta` route and got the same upstream rejection family "
+            "(`inlineData` / `referenceImages` not supported). Text-to-video still works. "
+            "If you need image-to-video right now, switch `base_url` to "
             "`https://generativelanguage.googleapis.com/v1beta` and use a Google native API key."
         ) from exc
 
@@ -285,19 +286,32 @@ def _submit_and_wait(client, model_name, payload, request_kind="video"):
     return task_id, task_info
 
 
-def _build_video_result(client, task_id, task_info, filename_prefix, save_output):
+def _validate_aihubmix_image_model_support(client, model_name):
+    if client.provider != PROVIDER_AIHUBMIX:
+        return
+
+    normalized = str(model_name or "").strip()
+    if normalized.startswith("veo-3.1"):
+        if normalized == "veo-3.1-lite-generate-preview":
+            raise ValueError(
+                "AIHubMix relay currently does not support image-to-video for "
+                "`veo-3.1-lite-generate-preview`. Their public Video Gen docs do not list Lite, "
+                "and live requests currently fail upstream. Use `veo-3.1-fast-generate-preview` "
+                "or `veo-3.1-generate-preview` only with Google native, or switch the whole backend "
+                "to `https://generativelanguage.googleapis.com/v1beta` for image-to-video."
+            )
+
+        raise ValueError(
+            "AIHubMix relay currently does not work reliably for Veo 3.1 image-to-video. "
+            "Live probes on April 17, 2026 failed upstream for the relay path. "
+            "Text-to-video still works. For image-to-video, please switch `base_url` to "
+            "`https://generativelanguage.googleapis.com/v1beta` and use a Google native API key."
+        )
+
+
+def _build_video_result(client, task_id, task_info):
     remote_video_url = extract_result_video_url(client, task_id, task_info)
-    if not save_output:
-        return {"result": (remote_video_url, task_id, "")}
-
-    output_dir = folder_paths.get_output_directory()
-    full_output_folder, filename, counter, subfolder, _ = folder_paths.get_save_image_path(filename_prefix, output_dir)
-    saved_name = f"{filename}_{counter:05}_.mp4"
-    file_path = os.path.join(full_output_folder, saved_name)
-
-    client.download_to_file(remote_video_url, file_path)
-
-    return {"result": (remote_video_url, task_id, file_path)}
+    return {"result": (remote_video_url, task_id, "")}
 
 
 def _build_preview_result(video_url, filename_prefix, save_output):
@@ -348,12 +362,10 @@ class _BaseVeoTextNode:
                 "prompt": ("STRING", {"multiline": True, "default": ""}),
                 "seconds": (TEXT_SECONDS_OPTIONS, {"default": "4"}),
                 "size": (SIZE_OPTIONS, {"default": "720p"}),
-                "filename_prefix": ("STRING", {"default": DEFAULT_FILENAME_PREFIX}),
-                "save_output": ("BOOLEAN", {"default": True}),
             }
         }
 
-    def generate(self, model, prompt, seconds, size, filename_prefix=DEFAULT_FILENAME_PREFIX, save_output=True):
+    def generate(self, model, prompt, seconds, size):
         with _runtime_client() as client:
             payload = build_text_video_payload(
                 model,
@@ -364,7 +376,7 @@ class _BaseVeoTextNode:
             )
             task_id, task_info = _submit_and_wait(client, model, payload, request_kind="text")
             print(f"[{NODE_PREFIX}] completed {model} task_id={task_id}")
-            return _build_video_result(client, task_id, task_info, filename_prefix, save_output)
+            return _build_video_result(client, task_id, task_info)
 
 
 class _BaseVeoImageNode:
@@ -382,13 +394,12 @@ class _BaseVeoImageNode:
                 "prompt": ("STRING", {"multiline": True, "default": ""}),
                 "image": ("IMAGE",),
                 "size": (SIZE_OPTIONS, {"default": "720p"}),
-                "filename_prefix": ("STRING", {"default": DEFAULT_FILENAME_PREFIX}),
-                "save_output": ("BOOLEAN", {"default": True}),
             }
         }
 
-    def generate(self, model, prompt, image, size, filename_prefix=DEFAULT_FILENAME_PREFIX, save_output=True):
+    def generate(self, model, prompt, image, size):
         with _runtime_client() as client:
+            _validate_aihubmix_image_model_support(client, model)
             image_reference = build_input_reference_payload(
                 _image_to_base64(image),
                 provider=client.provider,
@@ -402,7 +413,7 @@ class _BaseVeoImageNode:
             )
             task_id, task_info = _submit_and_wait(client, model, payload, request_kind="image")
             print(f"[{NODE_PREFIX}] completed {model} task_id={task_id}")
-            return _build_video_result(client, task_id, task_info, filename_prefix, save_output)
+            return _build_video_result(client, task_id, task_info)
 
 
 class Veo31TextNode(_BaseVeoTextNode):
