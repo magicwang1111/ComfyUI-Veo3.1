@@ -1,6 +1,6 @@
 # ComfyUI-Veo3.1
 
-`ComfyUI-Veo3.1` is a small ComfyUI custom node pack for generating Veo 3.1 videos through AIHubMix's unified video API.
+`ComfyUI-Veo3.1` is a small ComfyUI custom node pack for generating Veo 3.1 videos through either AIHubMix's unified video API or Google's native Gemini Developer API.
 
 It exposes four output nodes under the `ComfyUI-Veo3.1` category:
 
@@ -15,6 +15,8 @@ It exposes four output nodes under the `ComfyUI-Veo3.1` category:
 - Image-to-video for `veo-3.1-generate-preview`
 - Text-to-video for `veo-3.1-fast-generate-preview`
 - Image-to-video for `veo-3.1-fast-generate-preview`
+- AIHubMix relay mode through `https://aihubmix.com`
+- Google native mode through `https://generativelanguage.googleapis.com/v1beta`
 - Inline video preview on the generation node itself
 - Saving finished MP4 files into ComfyUI output
 - Remote preview when `save_output` is disabled
@@ -25,6 +27,7 @@ It exposes four output nodes under the `ComfyUI-Veo3.1` category:
 - Image-to-video is fixed to `8` seconds.
 - `size` is intentionally limited to `720p`, `1080p`, and `4k`.
 - The plugin does not expose a portrait/landscape toggle in v1.
+- When using Google native Veo, `1080p` and `4k` text-to-video require `8` seconds per the official Gemini API documentation.
 
 Why the direction toggle is hidden:
 - On April 17, 2026, live probes against `https://aihubmix.com/v1/videos` accepted both `aspect_ratio: "9:16"` and `ratio: "9:16"` with `size: "720p"`, but the completed outputs still rendered at `1280x720`.
@@ -45,17 +48,41 @@ Create [config.local.json](./config.local.json) in the repository root. Use [con
 
 Supported environment variables:
 
+- `VEO_API_KEY`
+- `VEO_BASE_URL`
+- `VEO_POLL_INTERVAL`
+- `VEO_REQUEST_TIMEOUT`
 - `AIHUBMIX_API_KEY`
 - `AIHUBMIX_BASE_URL`
 - `AIHUBMIX_POLL_INTERVAL`
 - `AIHUBMIX_REQUEST_TIMEOUT`
+- `GOOGLE_API_KEY`
+- `GEMINI_API_KEY`
 
 Priority:
 
 1. `config.local.json`
 2. Environment variables
 
-`base_url` accepts either `https://aihubmix.com` or `https://aihubmix.com/v1`. The plugin normalizes both forms to the same internal base URL.
+`base_url` decides which backend the plugin uses:
+
+- `https://aihubmix.com` or `https://aihubmix.com/v1`
+  Uses AIHubMix relay mode with `Authorization: Bearer ...`
+- `https://generativelanguage.googleapis.com` or `https://generativelanguage.googleapis.com/v1beta`
+  Uses Google's native Gemini Developer API with `x-goog-api-key: ...`
+
+The plugin auto-detects the provider from `base_url`, so the node interface stays the same.
+
+Google native example:
+
+```json
+{
+  "api_key": "YOUR_GOOGLE_API_KEY",
+  "base_url": "https://generativelanguage.googleapis.com/v1beta",
+  "poll_interval": 15.0,
+  "request_timeout": 60
+}
+```
 
 ## Installation
 
@@ -105,8 +132,9 @@ Outputs:
 
 Notes:
 
-- Image nodes always send `seconds = "8"` to AIHubMix.
-- `url` always returns the remote AIHubMix `/v1/videos/{video_id}/content` URL.
+- Image nodes always send `seconds = "8"` to the backend.
+- In AIHubMix mode, `url` returns `/v1/videos/{video_id}/content`.
+- In Google native mode, `url` returns the generated video download URI from the completed operation.
 - `file_path` is only populated when `save_output` is enabled.
 
 ## Examples
@@ -122,3 +150,5 @@ See [examples/README.md](./examples/README.md) for a quick description of each o
 
 - [AIHubMix Video Gen documentation (CN)](https://docs.aihubmix.com/cn/api/Video-Gen)
 - [AIHubMix Video Gen documentation (EN)](https://docs.aihubmix.com/en/api/Video-Gen)
+- [Generate videos with Veo 3.1 in Gemini API](https://ai.google.dev/gemini-api/docs/video)
+- [Gemini API pricing for Veo 3.1](https://ai.google.dev/gemini-api/docs/pricing)

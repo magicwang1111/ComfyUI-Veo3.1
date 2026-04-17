@@ -20,8 +20,9 @@ from .api import (
     build_image_video_payload,
     build_input_reference_payload,
     build_text_video_payload,
+    extract_result_video_url,
+    extract_task_id,
     submit_video_generation,
-    video_content_path,
     wait_for_video_completion,
 )
 
@@ -121,12 +122,13 @@ def _resolve_api_key(config_data):
     if _json_value_present(config_data, "api_key"):
         return str(config_data["api_key"]).strip()
 
-    env_value = _load_env_value("AIHUBMIX_API_KEY")
+    env_value = _load_env_value("VEO_API_KEY", "AIHUBMIX_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY")
     if env_value:
         return env_value
 
     raise ValueError(
-        "An api_key is required. Add api_key to config.local.json or set AIHUBMIX_API_KEY."
+        "An api_key is required. Add api_key to config.local.json or set VEO_API_KEY, "
+        "AIHUBMIX_API_KEY, GOOGLE_API_KEY, or GEMINI_API_KEY."
     )
 
 
@@ -134,7 +136,7 @@ def _resolve_base_url(config_data):
     if _json_value_present(config_data, "base_url"):
         return _normalize_base_url(config_data["base_url"])
 
-    env_value = _load_env_value("AIHUBMIX_BASE_URL")
+    env_value = _load_env_value("VEO_BASE_URL", "AIHUBMIX_BASE_URL")
     if env_value:
         return _normalize_base_url(env_value)
 
@@ -145,7 +147,7 @@ def _resolve_poll_interval(config_data):
     if _json_value_present(config_data, "poll_interval"):
         return _parse_poll_interval(config_data["poll_interval"])
 
-    env_value = _load_env_value("AIHUBMIX_POLL_INTERVAL")
+    env_value = _load_env_value("VEO_POLL_INTERVAL", "AIHUBMIX_POLL_INTERVAL")
     if env_value:
         return _parse_poll_interval(env_value)
 
@@ -156,7 +158,7 @@ def _resolve_request_timeout(config_data):
     if _json_value_present(config_data, "request_timeout"):
         return _parse_request_timeout(config_data["request_timeout"])
 
-    env_value = _load_env_value("AIHUBMIX_REQUEST_TIMEOUT")
+    env_value = _load_env_value("VEO_REQUEST_TIMEOUT", "AIHUBMIX_REQUEST_TIMEOUT")
     if env_value:
         return _parse_request_timeout(env_value)
 
@@ -185,7 +187,7 @@ def _runtime_client():
 def _raise_with_api_guidance(exc):
     if exc.status_code in {401, 403}:
         raise ValueError(
-            f"AIHubMix rejected the request with {exc.status_code}. "
+            f"The video API rejected the request with {exc.status_code}. "
             "Check api_key, base_url, billing, and model availability."
         ) from exc
 
@@ -250,30 +252,28 @@ def _clean_prompt(prompt):
     return prompt
 
 
-def _submit_and_wait(client, payload):
+def _submit_and_wait(client, model_name, payload):
     try:
-        submission = submit_video_generation(client, payload)
+        submission = submit_video_generation(client, model_name, payload)
     except VideoAPIError as exc:
         _raise_with_api_guidance(exc)
 
-    video_id = str(submission.get("id") or "").strip()
-    if not video_id:
-        raise ValueError("AIHubMix did not return a video id.")
+    task_id = extract_task_id(client, submission)
 
     try:
-        wait_for_video_completion(client, video_id)
+        task_info = wait_for_video_completion(client, task_id)
     except VideoAPIError as exc:
         _raise_with_api_guidance(exc)
 
-    return video_id
+    return task_id, task_info
 
 
-def _build_video_result(client, video_id, filename_prefix, save_output):
-    remote_video_url = client.absolute_url(video_content_path(video_id))
+def _build_video_result(client, task_id, task_info, filename_prefix, save_output):
+    remote_video_url = extract_result_video_url(client, task_id, task_info)
     if not save_output:
         return {
             "ui": {"video_url": [remote_video_url]},
-            "result": (remote_video_url, video_id, ""),
+            "result": (remote_video_url, task_id, ""),
         }
 
     output_dir = folder_paths.get_output_directory()
@@ -282,7 +282,7 @@ def _build_video_result(client, video_id, filename_prefix, save_output):
     file_path = os.path.join(full_output_folder, saved_name)
     local_preview_url = _build_local_media_view_url(saved_name, subfolder, "output")
 
-    client.download_to_file(video_content_path(video_id), file_path)
+    client.download_to_file(remote_video_url, file_path)
 
     return {
         "ui": {
@@ -290,7 +290,7 @@ def _build_video_result(client, video_id, filename_prefix, save_output):
             "video_url": [local_preview_url],
             "animated": (True,),
         },
-        "result": (remote_video_url, video_id, file_path),
+        "result": (remote_video_url, task_id, file_path),
     }
 
 
@@ -315,17 +315,17 @@ class _BaseVeoTextNode:
         }
 
     def generate(self, prompt, seconds, size, filename_prefix=DEFAULT_FILENAME_PREFIX, save_output=True):
-        payload = build_text_video_payload(
-            self.MODEL_NAME,
-            _clean_prompt(prompt),
-            seconds,
-            size,
-        )
-
         with _runtime_client() as client:
-            video_id = _submit_and_wait(client, payload)
-            print(f"[{NODE_PREFIX}] completed {self.MODEL_NAME} video_id={video_id}")
-            return _build_video_result(client, video_id, filename_prefix, save_output)
+            payload = build_text_video_payload(
+                self.MODEL_NAME,
+                _clean_prompt(prompt),
+                seconds,
+                size,
+                provider=client.provider,
+            )
+            task_id, task_info = _submit_and_wait(client, self.MODEL_NAME, payload)
+            print(f"[{NODE_PREFIX}] completed {self.MODEL_NAME} task_id={task_id}")
+            return _build_video_result(client, task_id, task_info, filename_prefix, save_output)
 
 
 class _BaseVeoImageNode:
@@ -349,18 +349,21 @@ class _BaseVeoImageNode:
         }
 
     def generate(self, prompt, image, size, filename_prefix=DEFAULT_FILENAME_PREFIX, save_output=True):
-        image_reference = build_input_reference_payload(_image_to_base64(image))
-        payload = build_image_video_payload(
-            self.MODEL_NAME,
-            _clean_prompt(prompt),
-            size,
-            image_reference,
-        )
-
         with _runtime_client() as client:
-            video_id = _submit_and_wait(client, payload)
-            print(f"[{NODE_PREFIX}] completed {self.MODEL_NAME} video_id={video_id}")
-            return _build_video_result(client, video_id, filename_prefix, save_output)
+            image_reference = build_input_reference_payload(
+                _image_to_base64(image),
+                provider=client.provider,
+            )
+            payload = build_image_video_payload(
+                self.MODEL_NAME,
+                _clean_prompt(prompt),
+                size,
+                image_reference,
+                provider=client.provider,
+            )
+            task_id, task_info = _submit_and_wait(client, self.MODEL_NAME, payload)
+            print(f"[{NODE_PREFIX}] completed {self.MODEL_NAME} task_id={task_id}")
+            return _build_video_result(client, task_id, task_info, filename_prefix, save_output)
 
 
 class Veo31TextNode(_BaseVeoTextNode):

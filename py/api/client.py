@@ -1,9 +1,16 @@
 import json
+from urllib.parse import urlparse
 
 import httpx
 
 
 DEFAULT_BASE_URL = "https://aihubmix.com"
+DEFAULT_GOOGLE_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+PROVIDER_AIHUBMIX = "aihubmix"
+PROVIDER_GOOGLE = "google"
+
+AIHUBMIX_HOSTS = {"aihubmix.com", "api.aihubmix.com"}
+GOOGLE_HOSTS = {"generativelanguage.googleapis.com"}
 
 
 class VideoAPIError(Exception):
@@ -58,24 +65,54 @@ class Client:
         self.api_key = api_key
         self.timeout = timeout
         self.base_url = self.normalize_base_url(base_url)
+        self.provider = self.detect_provider(self.base_url)
         self.poll_interval = float(poll_interval)
 
         timeout_config = httpx.Timeout(connect=10.0, read=timeout, write=timeout, pool=timeout)
         self._client = httpx.Client(
             base_url=self.base_url,
             timeout=timeout_config,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
+            headers=self.build_headers(self.api_key, self.provider),
         )
 
     @staticmethod
-    def normalize_base_url(base_url):
+    def detect_provider(base_url):
+        hostname = (urlparse(str(base_url or "").strip()).hostname or "").lower()
+        if hostname in GOOGLE_HOSTS:
+            return PROVIDER_GOOGLE
+        if hostname in AIHUBMIX_HOSTS:
+            return PROVIDER_AIHUBMIX
+        return PROVIDER_AIHUBMIX
+
+    @classmethod
+    def normalize_base_url(cls, base_url):
         normalized = (base_url or DEFAULT_BASE_URL).strip().rstrip("/")
+        provider = cls.detect_provider(normalized)
+
+        if provider == PROVIDER_GOOGLE:
+            if not normalized:
+                return DEFAULT_GOOGLE_BASE_URL
+            if normalized.endswith("/v1beta"):
+                return normalized
+            if normalized.endswith("/v1beta/"):
+                return normalized.rstrip("/")
+            parsed = urlparse(normalized)
+            if (parsed.hostname or "").lower() in GOOGLE_HOSTS and not parsed.path.rstrip("/"):
+                return f"{normalized}/v1beta"
+            return normalized
+
         if normalized.endswith("/v1"):
             normalized = normalized[:-3].rstrip("/")
         return normalized or DEFAULT_BASE_URL
+
+    @staticmethod
+    def build_headers(api_key, provider):
+        headers = {"Content-Type": "application/json"}
+        if provider == PROVIDER_GOOGLE:
+            headers["x-goog-api-key"] = api_key
+        else:
+            headers["Authorization"] = f"Bearer {api_key}"
+        return headers
 
     def request(self, method, path, **kwargs):
         if "json" in kwargs and isinstance(kwargs["json"], dict):
