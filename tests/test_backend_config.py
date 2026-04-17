@@ -124,6 +124,9 @@ class BackendConfigTests(unittest.TestCase):
             ],
         )
 
+    def test_aspect_ratio_options_include_landscape_and_portrait(self):
+        self.assertEqual(video_api.ASPECT_RATIO_OPTIONS, ["16:9", "9:16"])
+
     def test_runtime_client_prefers_config_local_json(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
@@ -201,11 +204,13 @@ class BackendConfigTests(unittest.TestCase):
             "A calm coastal scene.",
             "4",
             "720p",
+            "9:16",
         )
         self.assertEqual(payload["model"], "veo-3.1-generate-preview")
         self.assertEqual(payload["prompt"], "A calm coastal scene.")
         self.assertEqual(payload["seconds"], "4")
         self.assertEqual(payload["size"], "720p")
+        self.assertEqual(payload["aspect_ratio"], "9:16")
         self.assertNotIn("input_reference", payload)
 
     def test_google_text_payload_uses_instances_and_parameters(self):
@@ -214,11 +219,13 @@ class BackendConfigTests(unittest.TestCase):
             "A calm coastal scene.",
             "8",
             "1080p",
+            "9:16",
             provider=client_module.PROVIDER_GOOGLE,
         )
         self.assertEqual(payload["instances"][0]["prompt"], "A calm coastal scene.")
         self.assertEqual(payload["parameters"]["durationSeconds"], "8")
         self.assertEqual(payload["parameters"]["resolution"], "1080p")
+        self.assertEqual(payload["parameters"]["aspectRatio"], "9:16")
 
     def test_google_text_payload_blocks_short_1080p_requests(self):
         with self.assertRaises(ValueError):
@@ -237,9 +244,11 @@ class BackendConfigTests(unittest.TestCase):
             "A paper lantern in motion.",
             "1080p",
             input_reference,
+            "9:16",
         )
         self.assertEqual(payload["seconds"], "8")
         self.assertEqual(payload["size"], "1080p")
+        self.assertEqual(payload["aspect_ratio"], "9:16")
         self.assertEqual(payload["input_reference"]["mime_type"], "image/jpeg")
 
     def test_google_image_payload_uses_inline_data(self):
@@ -252,10 +261,12 @@ class BackendConfigTests(unittest.TestCase):
             "A paper lantern in motion.",
             "720p",
             input_reference,
+            "9:16",
             provider=client_module.PROVIDER_GOOGLE,
         )
         self.assertEqual(payload["instances"][0]["image"]["inlineData"]["mimeType"], "image/jpeg")
         self.assertEqual(payload["parameters"]["durationSeconds"], "8")
+        self.assertEqual(payload["parameters"]["aspectRatio"], "9:16")
 
     def test_wait_for_video_completion_polls_until_completed(self):
         client = FakeVideoClient(
@@ -315,6 +326,7 @@ class BackendConfigTests(unittest.TestCase):
                 "A calm coastal scene.",
                 "4",
                 "720p",
+                "9:16",
             )
 
         self.assertNotIn("ui", result)
@@ -352,6 +364,7 @@ class BackendConfigTests(unittest.TestCase):
                 "A calm coastal scene.",
                 "4",
                 "720p",
+                "9:16",
             )
 
         self.assertNotIn("ui", result)
@@ -378,6 +391,7 @@ class BackendConfigTests(unittest.TestCase):
                 "A calm coastal scene.",
                 "4",
                 "720p",
+                "9:16",
             )
 
         self.assertNotIn("ui", result)
@@ -412,6 +426,7 @@ class BackendConfigTests(unittest.TestCase):
                     "A paper lantern in motion.",
                     fake_image,
                     "720p",
+                    "9:16",
                 )
 
     def test_aihubmix_lite_image_node_raises_clearer_model_support_error(self):
@@ -428,6 +443,7 @@ class BackendConfigTests(unittest.TestCase):
                     "A paper lantern in motion.",
                     fake_image,
                     "720p",
+                    "9:16",
                 )
 
     def test_preview_video_returns_remote_url_when_save_disabled(self):

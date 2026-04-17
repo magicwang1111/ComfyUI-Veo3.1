@@ -23,16 +23,17 @@ It exposes three nodes under the `ComfyUI-Veo3.1` category:
 - `seconds` is limited to `4`, `6`, or `8` for text-to-video.
 - Image-to-video is fixed to `8` seconds.
 - `size` is intentionally limited to `720p`, `1080p`, and `4k`.
-- The plugin does not expose a portrait/landscape toggle in v1.
+- `aspect_ratio` is exposed as `16:9` or `9:16` on both generation nodes.
 - When using Google native Veo, `1080p` and `4k` text-to-video require `8` seconds per the official Gemini API documentation.
 - The text and image nodes now use a single `model` dropdown instead of separate nodes per model.
 - Generation nodes no longer display inline previews or saving controls. Connect their `url` output to `ComfyUI-Veo3.1 Preview Video`.
 - On April 17, 2026, AIHubMix Veo 3.1 image-to-video probes still failed with the upstream error `` `inlineData` isn't supported by this model `` on both `https://aihubmix.com/v1/videos` and `https://aihubmix.com/gemini/v1beta`. The plugin now surfaces that limitation with a clearer error message instead of dumping the raw gateway trace.
 - As of April 17, 2026, AIHubMix's public Video Gen docs list `veo-3.1-generate-preview` and `veo-3.1-fast-generate-preview`, but do not list `veo-3.1-lite-generate-preview`. The dropdown still includes Lite so you can use it against Google native Veo directly, but AIHubMix relay support for Lite may lag behind.
 
-Why the direction toggle is hidden:
-- On April 17, 2026, live probes against `https://aihubmix.com/v1/videos` accepted both `aspect_ratio: "9:16"` and `ratio: "9:16"` with `size: "720p"`, but the completed outputs still rendered at `1280x720`.
-- To avoid a misleading UI, this plugin currently keeps the interface to the fields that are confirmed to work end-to-end.
+Aspect ratio note:
+- Google's Veo 3.1 docs list `16:9` and `9:16` for text-to-video.
+- AIHubMix's Video Gen docs also list `16:9` and `9:16`, and the plugin now sends `aspect_ratio` through the relay path as well.
+- Earlier relay probes accepted portrait values but still returned landscape output in some cases, so AIHubMix portrait generation should be treated as best-effort rather than guaranteed.
 
 ## Configuration
 
@@ -107,6 +108,7 @@ Inputs:
 - `prompt`
 - `seconds`: `4`, `6`, `8`
 - `size`: `720p`, `1080p`, `4k`
+- `aspect_ratio`: `16:9`, `9:16`
 
 Outputs:
 
@@ -122,6 +124,7 @@ Inputs:
 - `prompt`
 - `image`
 - `size`: `720p`, `1080p`, `4k`
+- `aspect_ratio`: `16:9`, `9:16`
 
 Outputs:
 

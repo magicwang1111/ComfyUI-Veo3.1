@@ -7,6 +7,7 @@ from .client import PROVIDER_AIHUBMIX, PROVIDER_GOOGLE
 
 TEXT_SECONDS_OPTIONS = ["4", "6", "8"]
 SIZE_OPTIONS = ["720p", "1080p", "4k"]
+ASPECT_RATIO_OPTIONS = ["16:9", "9:16"]
 MODEL_OPTIONS = [
     "veo-3.1-lite-generate-preview",
     "veo-3.1-fast-generate-preview",
@@ -43,6 +44,13 @@ def _validate_size(size):
     return normalized
 
 
+def _validate_aspect_ratio(aspect_ratio):
+    normalized = str(aspect_ratio).strip()
+    if normalized not in ASPECT_RATIO_OPTIONS:
+        raise ValueError(f"aspect_ratio must be one of: {', '.join(ASPECT_RATIO_OPTIONS)}.")
+    return normalized
+
+
 def _validate_model_name(model_name):
     normalized = str(model_name).strip()
     if normalized not in MODEL_OPTIONS:
@@ -75,11 +83,12 @@ def build_input_reference_payload(
     }
 
 
-def build_text_video_payload(model_name, prompt, seconds, size, provider=PROVIDER_AIHUBMIX):
+def build_text_video_payload(model_name, prompt, seconds, size, aspect_ratio="16:9", provider=PROVIDER_AIHUBMIX):
     validated_model = _validate_model_name(model_name)
     cleaned_prompt = _clean_prompt(prompt)
     validated_seconds = _validate_seconds(seconds)
     validated_size = _validate_size(size)
+    validated_aspect_ratio = _validate_aspect_ratio(aspect_ratio)
 
     if provider == PROVIDER_GOOGLE:
         _validate_google_resolution_duration(validated_size, validated_seconds)
@@ -92,6 +101,7 @@ def build_text_video_payload(model_name, prompt, seconds, size, provider=PROVIDE
             "parameters": {
                 "durationSeconds": validated_seconds,
                 "resolution": validated_size,
+                "aspectRatio": validated_aspect_ratio,
             },
         }
 
@@ -100,16 +110,18 @@ def build_text_video_payload(model_name, prompt, seconds, size, provider=PROVIDE
         "prompt": cleaned_prompt,
         "seconds": validated_seconds,
         "size": validated_size,
+        "aspect_ratio": validated_aspect_ratio,
     }
 
 
-def build_image_video_payload(model_name, prompt, size, input_reference, provider=PROVIDER_AIHUBMIX):
+def build_image_video_payload(model_name, prompt, size, input_reference, aspect_ratio="16:9", provider=PROVIDER_AIHUBMIX):
     if not isinstance(input_reference, (dict, str)):
         raise ValueError("input_reference must be a dict or string.")
 
     validated_model = _validate_model_name(model_name)
     cleaned_prompt = _clean_prompt(prompt)
     validated_size = _validate_size(size)
+    validated_aspect_ratio = _validate_aspect_ratio(aspect_ratio)
 
     if provider == PROVIDER_GOOGLE:
         return {
@@ -122,6 +134,7 @@ def build_image_video_payload(model_name, prompt, size, input_reference, provide
             "parameters": {
                 "durationSeconds": DEFAULT_IMAGE_SECONDS,
                 "resolution": validated_size,
+                "aspectRatio": validated_aspect_ratio,
             },
         }
 
@@ -130,6 +143,7 @@ def build_image_video_payload(model_name, prompt, size, input_reference, provide
         "prompt": cleaned_prompt,
         "seconds": DEFAULT_IMAGE_SECONDS,
         "size": validated_size,
+        "aspect_ratio": validated_aspect_ratio,
         "input_reference": input_reference,
     }
 

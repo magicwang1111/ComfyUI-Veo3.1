@@ -13,6 +13,7 @@ import PIL.Image
 import torch
 
 from .api import (
+    ASPECT_RATIO_OPTIONS,
     Client,
     MODEL_OPTIONS,
     PROVIDER_AIHUBMIX,
@@ -362,16 +363,18 @@ class _BaseVeoTextNode:
                 "prompt": ("STRING", {"multiline": True, "default": ""}),
                 "seconds": (TEXT_SECONDS_OPTIONS, {"default": "4"}),
                 "size": (SIZE_OPTIONS, {"default": "720p"}),
+                "aspect_ratio": (ASPECT_RATIO_OPTIONS, {"default": "16:9"}),
             }
         }
 
-    def generate(self, model, prompt, seconds, size):
+    def generate(self, model, prompt, seconds, size, aspect_ratio):
         with _runtime_client() as client:
             payload = build_text_video_payload(
                 model,
                 _clean_prompt(prompt),
                 seconds,
                 size,
+                aspect_ratio=aspect_ratio,
                 provider=client.provider,
             )
             task_id, task_info = _submit_and_wait(client, model, payload, request_kind="text")
@@ -394,10 +397,11 @@ class _BaseVeoImageNode:
                 "prompt": ("STRING", {"multiline": True, "default": ""}),
                 "image": ("IMAGE",),
                 "size": (SIZE_OPTIONS, {"default": "720p"}),
+                "aspect_ratio": (ASPECT_RATIO_OPTIONS, {"default": "16:9"}),
             }
         }
 
-    def generate(self, model, prompt, image, size):
+    def generate(self, model, prompt, image, size, aspect_ratio):
         with _runtime_client() as client:
             _validate_aihubmix_image_model_support(client, model)
             image_reference = build_input_reference_payload(
@@ -409,6 +413,7 @@ class _BaseVeoImageNode:
                 _clean_prompt(prompt),
                 size,
                 image_reference,
+                aspect_ratio=aspect_ratio,
                 provider=client.provider,
             )
             task_id, task_info = _submit_and_wait(client, model, payload, request_kind="image")
