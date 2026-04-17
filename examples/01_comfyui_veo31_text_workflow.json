@@ -1,0 +1,62 @@
+{
+  "last_node_id": 1,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "ComfyUI-Veo3.1 veo-3.1-generate-preview (Text)",
+      "pos": [
+        420,
+        220
+      ],
+      "size": {
+        "0": 360,
+        "1": 260
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "video_id",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "file_path",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfyUI-Veo3.1 veo-3.1-generate-preview (Text)"
+      },
+      "widgets_values": [
+        "A calm coastal scene at sunrise, gentle waves, natural ambient ocean sound.",
+        "4",
+        "720p",
+        "ComfyUI-Veo3.1",
+        true
+      ]
+    }
+  ],
+  "links": [],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.0,
+      "offset": [
+        0,
+        0
+      ]
+    }
+  },
+  "version": 0.4
+}
