@@ -14,6 +14,7 @@ import torch
 
 from .api import (
     Client,
+    PROVIDER_AIHUBMIX,
     SIZE_OPTIONS,
     TEXT_SECONDS_OPTIONS,
     VideoAPIError,
@@ -184,7 +185,7 @@ def _runtime_client():
         client.close()
 
 
-def _raise_with_api_guidance(exc):
+def _raise_with_api_guidance(exc, provider=None, model_name=None, request_kind="video"):
     if exc.status_code in {401, 403}:
         raise ValueError(
             f"The video API rejected the request with {exc.status_code}. "
@@ -194,7 +195,22 @@ def _raise_with_api_guidance(exc):
     if exc.status_code == 429:
         raise ValueError("AIHubMix rate limit exceeded (429). Wait and retry.") from exc
 
-    raise ValueError(str(exc)) from exc
+    message = str(exc)
+    if (
+        provider == PROVIDER_AIHUBMIX
+        and request_kind == "image"
+        and str(model_name or "").startswith("veo-3.1")
+        and "inlineData" in message
+    ):
+        raise ValueError(
+            "AIHubMix currently rejects Veo 3.1 image-to-video requests for this model. "
+            "I rechecked this on April 17, 2026 against both `/v1/videos` and the Gemini-compatible "
+            "`/gemini/v1beta` route and got the same upstream `inlineData` rejection. "
+            "Text-to-video still works. If you need image-to-video right now, switch `base_url` to "
+            "`https://generativelanguage.googleapis.com/v1beta` and use a Google native API key."
+        ) from exc
+
+    raise ValueError(message) from exc
 
 
 def _tensor2images(tensor):
@@ -252,18 +268,18 @@ def _clean_prompt(prompt):
     return prompt
 
 
-def _submit_and_wait(client, model_name, payload):
+def _submit_and_wait(client, model_name, payload, request_kind="video"):
     try:
         submission = submit_video_generation(client, model_name, payload)
     except VideoAPIError as exc:
-        _raise_with_api_guidance(exc)
+        _raise_with_api_guidance(exc, provider=client.provider, model_name=model_name, request_kind=request_kind)
 
     task_id = extract_task_id(client, submission)
 
     try:
         task_info = wait_for_video_completion(client, task_id)
     except VideoAPIError as exc:
-        _raise_with_api_guidance(exc)
+        _raise_with_api_guidance(exc, provider=client.provider, model_name=model_name, request_kind=request_kind)
 
     return task_id, task_info
 
@@ -271,27 +287,16 @@ def _submit_and_wait(client, model_name, payload):
 def _build_video_result(client, task_id, task_info, filename_prefix, save_output):
     remote_video_url = extract_result_video_url(client, task_id, task_info)
     if not save_output:
-        return {
-            "ui": {"video_url": [remote_video_url]},
-            "result": (remote_video_url, task_id, ""),
-        }
+        return {"result": (remote_video_url, task_id, "")}
 
     output_dir = folder_paths.get_output_directory()
     full_output_folder, filename, counter, subfolder, _ = folder_paths.get_save_image_path(filename_prefix, output_dir)
     saved_name = f"{filename}_{counter:05}_.mp4"
     file_path = os.path.join(full_output_folder, saved_name)
-    local_preview_url = _build_local_media_view_url(saved_name, subfolder, "output")
 
     client.download_to_file(remote_video_url, file_path)
 
-    return {
-        "ui": {
-            "images": [_saved_result(saved_name, subfolder, "output")],
-            "video_url": [local_preview_url],
-            "animated": (True,),
-        },
-        "result": (remote_video_url, task_id, file_path),
-    }
+    return {"result": (remote_video_url, task_id, file_path)}
 
 
 def _build_preview_result(video_url, filename_prefix, save_output):
@@ -356,7 +361,7 @@ class _BaseVeoTextNode:
                 size,
                 provider=client.provider,
             )
-            task_id, task_info = _submit_and_wait(client, self.MODEL_NAME, payload)
+            task_id, task_info = _submit_and_wait(client, self.MODEL_NAME, payload, request_kind="text")
             print(f"[{NODE_PREFIX}] completed {self.MODEL_NAME} task_id={task_id}")
             return _build_video_result(client, task_id, task_info, filename_prefix, save_output)
 
@@ -394,7 +399,7 @@ class _BaseVeoImageNode:
                 image_reference,
                 provider=client.provider,
             )
-            task_id, task_info = _submit_and_wait(client, self.MODEL_NAME, payload)
+            task_id, task_info = _submit_and_wait(client, self.MODEL_NAME, payload, request_kind="image")
             print(f"[{NODE_PREFIX}] completed {self.MODEL_NAME} task_id={task_id}")
             return _build_video_result(client, task_id, task_info, filename_prefix, save_output)
 

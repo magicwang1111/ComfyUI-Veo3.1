@@ -308,10 +308,7 @@ class BackendConfigTests(unittest.TestCase):
                 False,
             )
 
-        self.assertEqual(
-            result["ui"]["video_url"],
-            ["https://aihubmix.com/v1/videos/video-123/content"],
-        )
+        self.assertNotIn("ui", result)
         self.assertEqual(
             result["result"],
             ("https://aihubmix.com/v1/videos/video-123/content", "video-123", ""),
@@ -349,10 +346,7 @@ class BackendConfigTests(unittest.TestCase):
                 False,
             )
 
-        self.assertEqual(
-            result["ui"]["video_url"],
-            ["https://example.com/generated-google.mp4"],
-        )
+        self.assertNotIn("ui", result)
         self.assertEqual(
             result["result"],
             ("https://example.com/generated-google.mp4", "operations/video-abc", ""),
@@ -387,15 +381,40 @@ class BackendConfigTests(unittest.TestCase):
                             True,
                         )
 
-        self.assertEqual(
-            result["ui"]["video_url"],
-            ["/api/view?type=output&filename=ComfyUI-Veo3.1_00001_.mp4"],
-        )
+        self.assertNotIn("ui", result)
         self.assertEqual(
             result["result"][0],
             "https://aihubmix.com/v1/videos/video-999/content",
         )
         self.assertTrue(result["result"][2].endswith("ComfyUI-Veo3.1_00001_.mp4"))
+
+    def test_aihubmix_image_node_raises_clearer_inline_data_error(self):
+        class InlineDataRejectingClient(FakeResolvedClient):
+            def __init__(self):
+                super().__init__("fake-key", timeout=60, base_url="https://aihubmix.com", poll_interval=0.0)
+
+            def request(self, method, path, **kwargs):
+                raise client_module.VideoAPIError(
+                    400,
+                    status="Aihubmix_api_error",
+                    message="`inlineData` isn't supported by this model.",
+                )
+
+        @contextmanager
+        def fake_runtime_client():
+            yield InlineDataRejectingClient()
+
+        fake_image = sys.modules["torch"].Tensor(numpy.zeros((1, 16, 16, 3), dtype=numpy.float32))
+
+        with mock.patch.object(veo_nodes, "_runtime_client", fake_runtime_client):
+            with self.assertRaisesRegex(ValueError, "AIHubMix currently rejects Veo 3.1 image-to-video requests"):
+                veo_nodes.Veo31ImageNode().generate(
+                    "A paper lantern in motion.",
+                    fake_image,
+                    "720p",
+                    "ComfyUI-Veo3.1",
+                    False,
+                )
 
     def test_preview_video_returns_remote_url_when_save_disabled(self):
         result = veo_nodes.PreviewVideoNode().run(

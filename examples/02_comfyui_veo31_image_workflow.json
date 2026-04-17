@@ -1,12 +1,12 @@
 {
-  "last_node_id": 2,
-  "last_link_id": 1,
+  "last_node_id": 3,
+  "last_link_id": 2,
   "nodes": [
     {
       "id": 1,
       "type": "LoadImage",
       "pos": [
-        220,
+        180,
         220
       ],
       "size": {
@@ -43,7 +43,7 @@
       "id": 2,
       "type": "ComfyUI-Veo3.1 veo-3.1-fast-generate-preview (Image)",
       "pos": [
-        640,
+        600,
         220
       ],
       "size": {
@@ -64,7 +64,9 @@
         {
           "name": "url",
           "type": "STRING",
-          "links": null
+          "links": [
+            2
+          ]
         },
         {
           "name": "video_id",
@@ -84,6 +86,42 @@
         "A softly lit cinematic shot that animates the loaded image naturally, with subtle ambient sound.",
         "720p",
         "ComfyUI-Veo3.1",
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "type": "ComfyUI-Veo3.1 Preview Video",
+      "pos": [
+        1060,
+        220
+      ],
+      "size": {
+        "0": 330,
+        "1": 180
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video_url",
+          "type": "STRING",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "file_path",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfyUI-Veo3.1 Preview Video"
+      },
+      "widgets_values": [
+        "ComfyUI-Veo3.1",
         true
       ]
     }
@@ -96,6 +134,14 @@
       2,
       0,
       "IMAGE"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "STRING"
     ]
   ],
   "groups": [],

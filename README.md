@@ -18,7 +18,6 @@ It exposes four output nodes under the `ComfyUI-Veo3.1` category:
 - Image-to-video for `veo-3.1-fast-generate-preview`
 - AIHubMix relay mode through `https://aihubmix.com`
 - Google native mode through `https://generativelanguage.googleapis.com/v1beta`
-- Inline video preview on the generation node itself
 - A standalone `Preview Video` node for explicit playback and saving
 - Saving finished MP4 files into ComfyUI output
 - Remote preview when `save_output` is disabled
@@ -30,6 +29,8 @@ It exposes four output nodes under the `ComfyUI-Veo3.1` category:
 - `size` is intentionally limited to `720p`, `1080p`, and `4k`.
 - The plugin does not expose a portrait/landscape toggle in v1.
 - When using Google native Veo, `1080p` and `4k` text-to-video require `8` seconds per the official Gemini API documentation.
+- Generation nodes no longer display inline previews. Connect their `url` output to `ComfyUI-Veo3.1 Preview Video`.
+- On April 17, 2026, AIHubMix Veo 3.1 image-to-video probes still failed with the upstream error `` `inlineData` isn't supported by this model `` on both `https://aihubmix.com/v1/videos` and `https://aihubmix.com/gemini/v1beta`. The plugin now surfaces that limitation with a clearer error message instead of dumping the raw gateway trace.
 
 Why the direction toggle is hidden:
 - On April 17, 2026, live probes against `https://aihubmix.com/v1/videos` accepted both `aspect_ratio: "9:16"` and `ratio: "9:16"` with `size: "720p"`, but the completed outputs still rendered at `1280x720`.
@@ -138,6 +139,7 @@ Notes:
 - In AIHubMix mode, `url` returns `/v1/videos/{video_id}/content`.
 - In Google native mode, `url` returns the generated video download URI from the completed operation.
 - `file_path` is only populated when `save_output` is enabled.
+- To preview the generated video inside ComfyUI, connect `url` to `ComfyUI-Veo3.1 Preview Video`.
 
 ### Preview Video Node
 
