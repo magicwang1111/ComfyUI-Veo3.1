@@ -109,9 +109,10 @@ class FakeVideoClient(FakeResolvedClient):
 
 class BackendConfigTests(unittest.TestCase):
     def test_node_mapping_contains_four_generation_nodes(self):
-        self.assertEqual(len(veo_package.NODE_CLASS_MAPPINGS), 4)
+        self.assertEqual(len(veo_package.NODE_CLASS_MAPPINGS), 5)
         self.assertIn("ComfyUI-Veo3.1 veo-3.1-generate-preview (Text)", veo_package.NODE_CLASS_MAPPINGS)
         self.assertIn("ComfyUI-Veo3.1 veo-3.1-fast-generate-preview (Image)", veo_package.NODE_CLASS_MAPPINGS)
+        self.assertIn("ComfyUI-Veo3.1 Preview Video", veo_package.NODE_CLASS_MAPPINGS)
 
     def test_runtime_client_prefers_config_local_json(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -395,6 +396,46 @@ class BackendConfigTests(unittest.TestCase):
             "https://aihubmix.com/v1/videos/video-999/content",
         )
         self.assertTrue(result["result"][2].endswith("ComfyUI-Veo3.1_00001_.mp4"))
+
+    def test_preview_video_returns_remote_url_when_save_disabled(self):
+        result = veo_nodes.PreviewVideoNode().run(
+            "https://example.com/video.mp4",
+            "ComfyUI-Veo3.1",
+            False,
+        )
+        self.assertEqual(
+            result["ui"]["video_url"],
+            ["https://example.com/video.mp4"],
+        )
+        self.assertEqual(result["result"], ("",))
+
+    def test_preview_video_saves_local_video_when_requested(self):
+        fake_client = FakeVideoClient([], base_url="https://aihubmix.com")
+
+        @contextmanager
+        def fake_runtime_client():
+            yield fake_client
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            with mock.patch.object(veo_nodes, "_runtime_client", fake_runtime_client):
+                with mock.patch.object(veo_nodes.folder_paths, "get_output_directory", return_value=str(tmpdir_path)):
+                    with mock.patch.object(
+                        veo_nodes.folder_paths,
+                        "get_save_image_path",
+                        return_value=(str(tmpdir_path), "ComfyUI-Veo3.1", 1, "", None),
+                    ):
+                        result = veo_nodes.PreviewVideoNode().run(
+                            "https://example.com/video.mp4",
+                            "ComfyUI-Veo3.1",
+                            True,
+                        )
+
+        self.assertEqual(
+            result["ui"]["video_url"],
+            ["/api/view?type=output&filename=ComfyUI-Veo3.1_00001_.mp4"],
+        )
+        self.assertTrue(result["result"][0].endswith("ComfyUI-Veo3.1_00001_.mp4"))
 
     def test_examples_are_valid_json(self):
         examples_dir = REPO_ROOT / "examples"

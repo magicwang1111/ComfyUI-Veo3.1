@@ -294,6 +294,39 @@ def _build_video_result(client, task_id, task_info, filename_prefix, save_output
     }
 
 
+def _build_preview_result(video_url, filename_prefix, save_output):
+    if isinstance(video_url, list):
+        video_url = video_url[0] if video_url else ""
+
+    video_url = str(video_url or "").strip()
+    if not video_url:
+        raise ValueError("video_url is required.")
+
+    if not save_output:
+        return {
+            "ui": {"video_url": [video_url]},
+            "result": ("",),
+        }
+
+    output_dir = folder_paths.get_output_directory()
+    full_output_folder, filename, counter, subfolder, _ = folder_paths.get_save_image_path(filename_prefix, output_dir)
+    saved_name = f"{filename}_{counter:05}_.mp4"
+    file_path = os.path.join(full_output_folder, saved_name)
+    local_preview_url = _build_local_media_view_url(saved_name, subfolder, "output")
+
+    with _runtime_client() as client:
+        client.download_to_file(video_url, file_path)
+
+    return {
+        "ui": {
+            "images": [_saved_result(saved_name, subfolder, "output")],
+            "video_url": [local_preview_url],
+            "animated": (True,),
+        },
+        "result": (file_path,),
+    }
+
+
 class _BaseVeoTextNode:
     MODEL_NAME = None
     RETURN_TYPES = ("STRING", "STRING", "STRING")
@@ -380,3 +413,24 @@ class Veo31FastTextNode(_BaseVeoTextNode):
 
 class Veo31FastImageNode(_BaseVeoImageNode):
     MODEL_NAME = "veo-3.1-fast-generate-preview"
+
+
+class PreviewVideoNode:
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("file_path",)
+    FUNCTION = "run"
+    OUTPUT_NODE = True
+    CATEGORY = NODE_CATEGORY
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video_url": ("STRING", {"forceInput": True}),
+                "filename_prefix": ("STRING", {"default": DEFAULT_FILENAME_PREFIX}),
+                "save_output": ("BOOLEAN", {"default": True}),
+            }
+        }
+
+    def run(self, video_url, filename_prefix=DEFAULT_FILENAME_PREFIX, save_output=True):
+        return _build_preview_result(video_url, filename_prefix, save_output)

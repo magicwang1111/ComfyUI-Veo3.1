@@ -8,6 +8,7 @@ const NODE_NAMES = new Set([
     "ComfyUI-Veo3.1 veo-3.1-generate-preview (Image)",
     "ComfyUI-Veo3.1 veo-3.1-fast-generate-preview (Text)",
     "ComfyUI-Veo3.1 veo-3.1-fast-generate-preview (Image)",
+    "ComfyUI-Veo3.1 Preview Video",
 ]);
 
 function setVideoDimensions(videoElement, width, height) {

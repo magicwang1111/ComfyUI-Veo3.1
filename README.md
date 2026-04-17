@@ -8,6 +8,7 @@ It exposes four output nodes under the `ComfyUI-Veo3.1` category:
 - `ComfyUI-Veo3.1 veo-3.1-generate-preview (Image)`
 - `ComfyUI-Veo3.1 veo-3.1-fast-generate-preview (Text)`
 - `ComfyUI-Veo3.1 veo-3.1-fast-generate-preview (Image)`
+- `ComfyUI-Veo3.1 Preview Video`
 
 ## What It Supports
 
@@ -18,6 +19,7 @@ It exposes four output nodes under the `ComfyUI-Veo3.1` category:
 - AIHubMix relay mode through `https://aihubmix.com`
 - Google native mode through `https://generativelanguage.googleapis.com/v1beta`
 - Inline video preview on the generation node itself
+- A standalone `Preview Video` node for explicit playback and saving
 - Saving finished MP4 files into ComfyUI output
 - Remote preview when `save_output` is disabled
 
@@ -136,6 +138,24 @@ Notes:
 - In AIHubMix mode, `url` returns `/v1/videos/{video_id}/content`.
 - In Google native mode, `url` returns the generated video download URI from the completed operation.
 - `file_path` is only populated when `save_output` is enabled.
+
+### Preview Video Node
+
+Inputs:
+
+- `video_url`
+- `filename_prefix`
+- `save_output`
+
+Outputs:
+
+- `file_path`
+
+Notes:
+
+- Use this node when you want a dedicated preview widget in the workflow, similar to the Kling wrapper.
+- With `save_output=false`, it previews the remote URL directly.
+- With `save_output=true`, it downloads the MP4 to ComfyUI output first, then previews the local file.
 
 ## Examples
 
