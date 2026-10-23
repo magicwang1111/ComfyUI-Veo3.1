@@ -190,12 +190,12 @@ def _runtime_client():
 def _raise_with_api_guidance(exc, provider=None, model_name=None, request_kind="video"):
     if exc.status_code in {401, 403}:
         raise ValueError(
-            f"The video API rejected the request with {exc.status_code}. "
+            f"{exc} "
             "Check api_key, base_url, billing, and model availability."
         ) from exc
 
     if exc.status_code == 429:
-        raise ValueError("AIHubMix rate limit exceeded (429). Wait and retry.") from exc
+        raise ValueError(f"{exc} Check billing/quota or request rate according to the API error above.") from exc
 
     message = str(exc)
     if (

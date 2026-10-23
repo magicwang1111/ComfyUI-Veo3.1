@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest import mock
 
+import httpx
 import numpy
 
 
@@ -108,6 +109,22 @@ class FakeVideoClient(FakeResolvedClient):
 
 
 class BackendConfigTests(unittest.TestCase):
+    def test_api_guidance_preserves_billing_and_permission_reasons(self):
+        for status, code, message in (
+            (403, "insufficient_balance", "Insufficient balance"),
+            (403, "account_overdue", "Forbidden"),
+            (403, "permission_denied", "Model access denied"),
+            (429, "insufficient_quota", "Quota exhausted"),
+        ):
+            with self.subTest(status=status, code=code):
+                error = client_module.VideoAPIError.from_response(httpx.Response(
+                    status, json={"error": {"code": code, "message": message}}
+                ))
+                with self.assertRaises(ValueError) as caught:
+                    veo_nodes._raise_with_api_guidance(error)
+                self.assertIn(code, str(caught.exception))
+                self.assertIn(message, str(caught.exception))
+
     def test_node_mapping_contains_two_generation_nodes_and_preview(self):
         self.assertEqual(len(veo_package.NODE_CLASS_MAPPINGS), 3)
         self.assertIn("ComfyUI-Veo3.1 Text-to-Video", veo_package.NODE_CLASS_MAPPINGS)
